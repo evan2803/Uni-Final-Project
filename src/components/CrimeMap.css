@@ -1,0 +1,16 @@
+.controls {
+  padding: 1rem;
+  background: white;
+  position: relative;
+  z-index: 1000;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.controls label {
+  font-weight: bold;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+}

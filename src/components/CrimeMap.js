@@ -24,6 +24,7 @@ const CrimeMap = () => {
   const [crimeSummary, setCrimeSummary] = useState([]);
   const [selectedDate, setSelectedDate] = useState('2023-12');
   const [viewMode, setViewMode] = useState('bubble');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   useEffect(() => {
     fetch(`http://localhost:8000/api/crimes/summary?date=${selectedDate}`)
@@ -34,6 +35,10 @@ const CrimeMap = () => {
       })
       .catch(err => console.error("API error:", err));
   }, [selectedDate]);
+
+  const filteredCrimes = selectedCategory === 'all'
+    ? crimeSummary
+    : crimeSummary.filter(crime => crime.category === selectedCategory);
 
   return (
     <>
@@ -61,6 +66,19 @@ const CrimeMap = () => {
             <option value="heatmap">🔥 Heatmap</option>
           </select>
         </label>
+
+        <label>
+          🕵️ Crime Type:
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+          >
+            <option value="all">All</option>
+            {[...new Set(crimeSummary.map(c => c.category))].map((cat, idx) => (
+              <option key={idx} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <MapContainer
@@ -73,7 +91,7 @@ const CrimeMap = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {viewMode === 'bubble' && crimeSummary.map((crime, i) => (
+        {viewMode === 'bubble' && filteredCrimes.map((crime, i) => (
           <CircleMarker
             key={i}
             center={[crime.lat, crime.lng]}
@@ -90,7 +108,7 @@ const CrimeMap = () => {
 
         {viewMode === 'cluster' && (
           <MarkerClusterGroup>
-            {crimeSummary.map((crime, i) => (
+            {filteredCrimes.map((crime, i) => (
               <Marker
                 key={i}
                 position={[crime.lat, crime.lng]}
@@ -105,7 +123,7 @@ const CrimeMap = () => {
         )}
 
         {viewMode === 'heatmap' && (
-          <HeatmapLayer data={crimeSummary} />
+          <HeatmapLayer data={filteredCrimes} />
         )}
       </MapContainer>
     </>

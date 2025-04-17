@@ -25,6 +25,7 @@ const CrimeMap = () => {
   const [selectedDate, setSelectedDate] = useState('2023-12');
   const [viewMode, setViewMode] = useState('bubble');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedDistrict, setSelectedDistrict] = useState('all');
 
   useEffect(() => {
     fetch(`http://localhost:8000/api/crimes/summary?date=${selectedDate}`)
@@ -36,9 +37,23 @@ const CrimeMap = () => {
       .catch(err => console.error("API error:", err));
   }, [selectedDate]);
 
-  const filteredCrimes = selectedCategory === 'all'
-    ? crimeSummary
-    : crimeSummary.filter(crime => crime.category === selectedCategory);
+  // Extract unique postcode districts (e.g. BS1, BS2)
+  const allDistricts = [
+    ...new Set(
+      crimeSummary
+        .map(c => c.postcode?.split(' ')[0])
+        .filter(Boolean)
+    )
+  ].sort();
+
+  const filteredCrimes = crimeSummary.filter(crime => {
+    const matchCategory =
+      selectedCategory === 'all' || crime.category === selectedCategory;
+    const district = crime.postcode?.split(' ')[0];
+    const matchDistrict =
+      selectedDistrict === 'all' || district === selectedDistrict;
+    return matchCategory && matchDistrict;
+  });
 
   return (
     <>
@@ -56,10 +71,7 @@ const CrimeMap = () => {
           🗺️ View Mode:
           <select
             value={viewMode}
-            onChange={(e) => {
-              console.log("🟢 Changing viewMode to:", e.target.value);
-              setViewMode(e.target.value);
-            }}
+            onChange={(e) => setViewMode(e.target.value)}
           >
             <option value="bubble">🟣 Bubble Markers</option>
             <option value="cluster">🧩 Clustered Markers</option>
@@ -76,6 +88,19 @@ const CrimeMap = () => {
             <option value="all">All</option>
             {[...new Set(crimeSummary.map(c => c.category))].map((cat, idx) => (
               <option key={idx} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          🏷️ Postcode District:
+          <select
+            value={selectedDistrict}
+            onChange={(e) => setSelectedDistrict(e.target.value)}
+          >
+            <option value="all">All</option>
+            {allDistricts.map((d, idx) => (
+              <option key={idx} value={d}>{d}</option>
             ))}
           </select>
         </label>
@@ -101,7 +126,8 @@ const CrimeMap = () => {
           >
             <Popup>
               <b>{crime.category}</b><br />
-              {crime.count} reports
+              {crime.count} reports<br />
+              <small>{crime.postcode}</small>
             </Popup>
           </CircleMarker>
         ))}
@@ -115,7 +141,8 @@ const CrimeMap = () => {
               >
                 <Popup>
                   <b>{crime.category}</b><br />
-                  {crime.count} reports
+                  {crime.count} reports<br />
+                  <small>{crime.postcode}</small>
                 </Popup>
               </Marker>
             ))}

@@ -1,69 +1,87 @@
 .map-layout {
   display: flex;
   height: 100vh;
-  overflow: hidden;
-  font-family: Arial, sans-serif;
+  width: 100%;
+  position: relative;
+  font-family: 'Segoe UI', sans-serif;
 }
 
 .sidebar {
   width: 260px;
-  background-color: #f5f5f5;
-  padding: 16px;
-  overflow-y: auto;
+  background: #f8f8f8;
+  padding: 15px;
   border-right: 1px solid #ccc;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  z-index: 1001;
 }
 
-.form-group {
+.map-container {
+  flex-grow: 1;
+  height: 100%;
+}
+
+/* Full-screen analytics panel */
+.analytics-panel-full {
+  width: 100%;
+  height: 100vh;
+  padding: 40px;
+  background: white;
+  overflow-y: auto;
+  box-sizing: border-box;
+  z-index: 1000;
+}
+
+.analytics-panel-full h3 {
+  margin-top: 30px;
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+}
+
+.analytics-panel-full button {
+  margin-bottom: 20px;
+}
+
+/* Inputs and dropdowns */
+label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
-}
-
-.sidebar label {
   font-weight: bold;
-  font-size: 14px;
+  font-size: 0.9rem;
 }
 
 input[type="month"],
 select {
+  margin-top: 4px;
   padding: 6px;
-  font-size: 14px;
-  border-radius: 4px;
+  font-size: 0.9rem;
   border: 1px solid #ccc;
+  border-radius: 4px;
 }
 
 .multi-select {
-  height: 120px;
+  height: 100px;
 }
 
-.toggle-btn {
-  padding: 6px 12px;
-  font-size: 14px;
-  margin-bottom: 10px;
-  background-color: white;
-  border: 1px solid #2196F3;
-  color: #000;
-  cursor: pointer;
+/* Basic button styling */
+button {
+  padding: 8px 12px;
+  border: none;
   border-radius: 4px;
-  transition: background-color 0.3s;
+  background-color: #eee;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-.toggle-btn:hover {
-  background-color: #e3f2fd;
+button:hover {
+  background-color: #ddd;
 }
 
-.toggle-btn.show {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1000;
-}
-
-.map-container {
-  flex: 1;
-  position: relative;
+/* Make sure Leaflet map fills its container */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
 }

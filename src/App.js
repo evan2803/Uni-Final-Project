@@ -1,11 +1,16 @@
 import React from 'react';
-import CrimeMap from './components/CrimeMap';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import CrimeMapPage from './pages/CrimeMapPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 
 function App() {
   return (
-    <div>
-      <CrimeMap />
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<CrimeMapPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
+      </Routes>
+    </Router>
   );
 }
 

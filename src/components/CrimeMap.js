@@ -1,37 +1,26 @@
+import React, { useEffect, useState } from 'react';
 import {
   MapContainer,
   TileLayer,
   CircleMarker,
   Popup,
-  Marker,
-  useMap
+  Marker
 } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
-import { useEffect, useState } from 'react';
-import L from 'leaflet';
 import './CrimeMap.css';
 import HeatmapLayer from './HeatmapLayer';
+import { useNavigate } from 'react-router-dom';
 
-const BASE_URL = "http://127.0.0.1:8000";
-
+// Fix leaflet's default marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
   iconUrl: require('leaflet/dist/images/marker-icon.png'),
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
-
-const ResizeMap = ({ trigger }) => {
-  const map = useMap();
-  useEffect(() => {
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 200);
-  }, [trigger]);
-  return null;
-};
 
 const CrimeMap = () => {
   const [crimeSummary, setCrimeSummary] = useState([]);
@@ -41,6 +30,8 @@ const CrimeMap = () => {
   const [selectedCategory, setSelectedCategory] = useState(['all']);
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [showSidebar, setShowSidebar] = useState(true);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchDataForRange = async () => {
@@ -56,7 +47,7 @@ const CrimeMap = () => {
 
       const allData = await Promise.all(
         dates.map(date =>
-          fetch(`${BASE_URL}/api/crimes/summary?date=${date}`)
+          fetch(`http://localhost:8000/api/crimes/summary?date=${date}`)
             .then(res => res.json())
             .catch(err => {
               console.error("API error for", date, err);
@@ -72,7 +63,9 @@ const CrimeMap = () => {
   }, [startDate, endDate]);
 
   const allDistricts = [
-    ...new Set(crimeSummary.map(c => c.postcode?.split(' ')[0]).filter(Boolean))
+    ...new Set(
+      crimeSummary.map(c => c.postcode?.split(' ')[0]).filter(Boolean)
+    )
   ].sort();
 
   const filteredCrimes = crimeSummary.filter(crime => {
@@ -86,40 +79,46 @@ const CrimeMap = () => {
     return matchCategory && matchDistrict;
   });
 
+  const estimateTimeSeconds = () => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const monthCount = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+    return monthCount > 0 ? monthCount : 0;
+  };
+
   return (
     <div className="map-layout">
       {showSidebar && (
         <div className="sidebar">
-          <button onClick={() => setShowSidebar(false)} className="toggle-btn">← Hide Filters</button>
-          <div className="form-group">
-            <label>📅 Start Date:</label>
+          <button onClick={() => setShowSidebar(false)}>← Hide Filters</button>
+
+          <label>📅 Start Date:
             <input
               type="month"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
             />
-          </div>
-          <div className="form-group">
-            <label>📅 End Date:</label>
+          </label>
+
+          <label>📅 End Date:
             <input
               type="month"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
             />
-          </div>
-          <div className="form-group">
-            <label>🗺️ View Mode:</label>
-            <select
-              value={viewMode}
-              onChange={(e) => setViewMode(e.target.value)}
-            >
+          </label>
+
+          <p>⏳ Estimated load time: {estimateTimeSeconds()}s</p>
+
+          <label>🗺️ View Mode:
+            <select value={viewMode} onChange={e => setViewMode(e.target.value)}>
               <option value="bubble">🟣 Bubble Markers</option>
               <option value="cluster">🧩 Clustered Markers</option>
               <option value="heatmap">🔥 Heatmap</option>
             </select>
-          </div>
-          <div className="form-group">
-            <label>🕵️ Crime Type (CTRL to Select Multiple):</label>
+          </label>
+
+          <label>🕵️ Crime Type (CTRL to Select Multiple):
             <select
               multiple
               value={selectedCategory}
@@ -134,9 +133,9 @@ const CrimeMap = () => {
                 <option key={idx} value={cat}>{cat}</option>
               ))}
             </select>
-          </div>
-          <div className="form-group">
-            <label>🏷️ Postcode District:</label>
+          </label>
+
+          <label>🏷️ Postcode District:
             <select
               value={selectedDistrict}
               onChange={(e) => setSelectedDistrict(e.target.value)}
@@ -146,21 +145,30 @@ const CrimeMap = () => {
                 <option key={idx} value={d}>{d}</option>
               ))}
             </select>
-          </div>
+          </label>
+
+          <button onClick={() => navigate('/analytics')}>
+            📊 Show Analytics
+          </button>
         </div>
       )}
 
       {!showSidebar && (
-        <button onClick={() => setShowSidebar(true)} className="toggle-btn show right">→ Show Filters</button>
+        <button
+          onClick={() => setShowSidebar(true)}
+          style={{ position: 'absolute', left: 10, top: 10, zIndex: 1000 }}
+        >
+          → Show Filters
+        </button>
       )}
 
       <div className="map-container">
-        <MapContainer center={[51.4545, -2.5879]} zoom={13} style={{ height: "100%", width: "100%" }}>
-          <ResizeMap trigger={showSidebar} />
+        <MapContainer center={[51.4545, -2.5879]} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={false}>
           <TileLayer
             attribution='&copy; OpenStreetMap contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+
           {viewMode === 'bubble' && filteredCrimes.map((crime, i) => (
             <CircleMarker
               key={i}
@@ -176,10 +184,14 @@ const CrimeMap = () => {
               </Popup>
             </CircleMarker>
           ))}
+
           {viewMode === 'cluster' && (
             <MarkerClusterGroup>
               {filteredCrimes.map((crime, i) => (
-                <Marker key={i} position={[crime.lat, crime.lng]}>
+                <Marker
+                  key={i}
+                  position={[crime.lat, crime.lng]}
+                >
                   <Popup>
                     <b>{crime.category}</b><br />
                     {crime.count} reports<br />
@@ -189,6 +201,7 @@ const CrimeMap = () => {
               ))}
             </MarkerClusterGroup>
           )}
+
           {viewMode === 'heatmap' && (
             <HeatmapLayer data={filteredCrimes} />
           )}

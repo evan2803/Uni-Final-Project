@@ -3,7 +3,8 @@ import {
   TileLayer,
   CircleMarker,
   Popup,
-  Marker
+  Marker,
+  useMap
 } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
@@ -22,29 +23,56 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
+const ResizeMap = ({ trigger }) => {
+  const map = useMap();
+  useEffect(() => {
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+  }, [trigger]);
+  return null;
+};
+
 const CrimeMap = () => {
   const [crimeSummary, setCrimeSummary] = useState([]);
-  const [selectedDate, setSelectedDate] = useState('2023-12');
+  const [startDate, setStartDate] = useState('2023-12');
+  const [endDate, setEndDate] = useState('2023-12');
   const [viewMode, setViewMode] = useState('bubble');
   const [selectedCategory, setSelectedCategory] = useState(['all']);
   const [selectedDistrict, setSelectedDistrict] = useState('all');
+  const [showSidebar, setShowSidebar] = useState(true);
 
   useEffect(() => {
-    fetch(`${BASE_URL}/api/crimes/summary?date=${selectedDate}`)
-      .then(res => res.json())
-      .then(data => {
-        console.log("📦 crimeSummary from API:", data);
-        setCrimeSummary(data);
-      })
-      .catch(err => console.error("API error:", err));
-  }, [selectedDate]);
+    const fetchDataForRange = async () => {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const dates = [];
+      while (start <= end) {
+        const year = start.getFullYear();
+        const month = (start.getMonth() + 1).toString().padStart(2, '0');
+        dates.push(`${year}-${month}`);
+        start.setMonth(start.getMonth() + 1);
+      }
+
+      const allData = await Promise.all(
+        dates.map(date =>
+          fetch(`${BASE_URL}/api/crimes/summary?date=${date}`)
+            .then(res => res.json())
+            .catch(err => {
+              console.error("API error for", date, err);
+              return [];
+            })
+        )
+      );
+
+      setCrimeSummary(allData.flat());
+    };
+
+    fetchDataForRange();
+  }, [startDate, endDate]);
 
   const allDistricts = [
-    ...new Set(
-      crimeSummary
-        .map(c => c.postcode?.split(' ')[0])
-        .filter(Boolean)
-    )
+    ...new Set(crimeSummary.map(c => c.postcode?.split(' ')[0]).filter(Boolean))
   ].sort();
 
   const filteredCrimes = crimeSummary.filter(crime => {
@@ -60,71 +88,79 @@ const CrimeMap = () => {
 
   return (
     <div className="map-layout">
-      <div className="sidebar">
-        <label>
-          📅 Date:
-          <input
-            type="month"
-            value={selectedDate}
-            onChange={e => setSelectedDate(e.target.value)}
-          />
-        </label>
+      {showSidebar && (
+        <div className="sidebar">
+          <button onClick={() => setShowSidebar(false)} className="toggle-btn">← Hide Filters</button>
+          <div className="form-group">
+            <label>📅 Start Date:</label>
+            <input
+              type="month"
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label>📅 End Date:</label>
+            <input
+              type="month"
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label>🗺️ View Mode:</label>
+            <select
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value)}
+            >
+              <option value="bubble">🟣 Bubble Markers</option>
+              <option value="cluster">🧩 Clustered Markers</option>
+              <option value="heatmap">🔥 Heatmap</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>🕵️ Crime Type (CTRL to Select Multiple):</label>
+            <select
+              multiple
+              value={selectedCategory}
+              onChange={(e) => {
+                const options = Array.from(e.target.selectedOptions).map(o => o.value);
+                setSelectedCategory(options);
+              }}
+              className="multi-select"
+            >
+              <option value="all">All</option>
+              {[...new Set(crimeSummary.map(c => c.category))].map((cat, idx) => (
+                <option key={idx} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>🏷️ Postcode District:</label>
+            <select
+              value={selectedDistrict}
+              onChange={(e) => setSelectedDistrict(e.target.value)}
+            >
+              <option value="all">All</option>
+              {allDistricts.map((d, idx) => (
+                <option key={idx} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
-        <label>
-          🗺️ View Mode:
-          <select
-            value={viewMode}
-            onChange={(e) => setViewMode(e.target.value)}
-          >
-            <option value="bubble">🟣 Bubble Markers</option>
-            <option value="cluster">🧩 Clustered Markers</option>
-            <option value="heatmap">🔥 Heatmap</option>
-          </select>
-        </label>
-
-        <label>
-          🕵️ Crime Type (CTRL to Select Multiple):
-          <select
-            multiple
-            value={selectedCategory}
-            onChange={(e) => {
-              const options = Array.from(e.target.selectedOptions).map(o => o.value);
-              setSelectedCategory(options);
-            }}
-            className="multi-select"
-          >
-            <option value="all">All</option>
-            {[...new Set(crimeSummary.map(c => c.category))].map((cat, idx) => (
-              <option key={idx} value={cat}>{cat}</option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          🏷️ Postcode District:
-          <select
-            value={selectedDistrict}
-            onChange={(e) => setSelectedDistrict(e.target.value)}
-          >
-            <option value="all">All</option>
-            {allDistricts.map((d, idx) => (
-              <option key={idx} value={d}>{d}</option>
-            ))}
-          </select>
-        </label>
-      </div>
+      {!showSidebar && (
+        <button onClick={() => setShowSidebar(true)} className="toggle-btn show right">→ Show Filters</button>
+      )}
 
       <div className="map-container">
-        <MapContainer
-          center={[51.4545, -2.5879]}
-          zoom={13}
-          style={{ height: "100%", width: "100%" }}
-        >
+        <MapContainer center={[51.4545, -2.5879]} zoom={13} style={{ height: "100%", width: "100%" }}>
+          <ResizeMap trigger={showSidebar} />
           <TileLayer
             attribution='&copy; OpenStreetMap contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-
           {viewMode === 'bubble' && filteredCrimes.map((crime, i) => (
             <CircleMarker
               key={i}
@@ -140,14 +176,10 @@ const CrimeMap = () => {
               </Popup>
             </CircleMarker>
           ))}
-
           {viewMode === 'cluster' && (
             <MarkerClusterGroup>
               {filteredCrimes.map((crime, i) => (
-                <Marker
-                  key={i}
-                  position={[crime.lat, crime.lng]}
-                >
+                <Marker key={i} position={[crime.lat, crime.lng]}>
                   <Popup>
                     <b>{crime.category}</b><br />
                     {crime.count} reports<br />
@@ -157,7 +189,6 @@ const CrimeMap = () => {
               ))}
             </MarkerClusterGroup>
           )}
-
           {viewMode === 'heatmap' && (
             <HeatmapLayer data={filteredCrimes} />
           )}

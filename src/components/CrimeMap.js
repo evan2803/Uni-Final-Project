@@ -22,20 +22,42 @@ L.Icon.Default.mergeOptions({
 
 const CrimeMap = () => {
   const [crimeSummary, setCrimeSummary] = useState([]);
-  const [selectedDate, setSelectedDate] = useState('2023-12');
+  const [startDate, setStartDate] = useState('2023-12');
+  const [endDate, setEndDate] = useState('2023-12');
   const [viewMode, setViewMode] = useState('bubble');
   const [selectedCategory, setSelectedCategory] = useState(['all']);
   const [selectedDistrict, setSelectedDistrict] = useState('all');
 
   useEffect(() => {
-    fetch(`http://localhost:8000/api/crimes/summary?date=${selectedDate}`)
-      .then(res => res.json())
-      .then(data => {
-        console.log("📦 crimeSummary from API:", data);
-        setCrimeSummary(data);
-      })
-      .catch(err => console.error("API error:", err));
-  }, [selectedDate]);
+    const fetchDataForRange = async () => {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const dates = [];
+      while (start <= end) {
+        const year = start.getFullYear();
+        const month = (start.getMonth() + 1).toString().padStart(2, '0');
+        dates.push(`${year}-${month}`);
+        start.setMonth(start.getMonth() + 1);
+      }
+
+      const allData = await Promise.all(
+        dates.map(date =>
+          fetch(`http://localhost:8000/api/crimes/summary?date=${date}`)
+            .then(res => res.json())
+            .catch(err => {
+              console.error("API error for", date, err);
+              return [];
+            })
+        )
+      );
+
+      const flatData = allData.flat();
+      console.log("📦 Combined crimeSummary:", flatData);
+      setCrimeSummary(flatData);
+    };
+
+    fetchDataForRange();
+  }, [startDate, endDate]);
 
   const allDistricts = [
     ...new Set(
@@ -56,17 +78,35 @@ const CrimeMap = () => {
     return matchCategory && matchDistrict;
   });
 
+  const estimateTimeSeconds = () => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const monthCount = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+    return monthCount > 0 ? monthCount : 0;
+  };
+
   return (
     <div className="map-layout">
       <div className="sidebar">
         <label>
-          📅 Date:
+          📅 Start Date:
           <input
             type="month"
-            value={selectedDate}
-            onChange={e => setSelectedDate(e.target.value)}
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
           />
         </label>
+
+        <label>
+          📅 End Date:
+          <input
+            type="month"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+          />
+        </label>
+
+        <p>⏳ Estimated load time: {estimateTimeSeconds()}s</p>
 
         <label>
           🗺️ View Mode:

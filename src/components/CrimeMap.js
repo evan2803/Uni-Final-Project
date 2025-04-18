@@ -24,7 +24,7 @@ const CrimeMap = () => {
   const [crimeSummary, setCrimeSummary] = useState([]);
   const [selectedDate, setSelectedDate] = useState('2023-12');
   const [viewMode, setViewMode] = useState('bubble');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(['all']);
   const [selectedDistrict, setSelectedDistrict] = useState('all');
 
   useEffect(() => {
@@ -37,7 +37,6 @@ const CrimeMap = () => {
       .catch(err => console.error("API error:", err));
   }, [selectedDate]);
 
-  // Extract unique postcode districts (e.g. BS1, BS2)
   const allDistricts = [
     ...new Set(
       crimeSummary
@@ -48,7 +47,9 @@ const CrimeMap = () => {
 
   const filteredCrimes = crimeSummary.filter(crime => {
     const matchCategory =
-      selectedCategory === 'all' || crime.category === selectedCategory;
+      selectedCategory.includes("all") ||
+      selectedCategory.length === 0 ||
+      selectedCategory.includes(crime.category);
     const district = crime.postcode?.split(' ')[0];
     const matchDistrict =
       selectedDistrict === 'all' || district === selectedDistrict;
@@ -56,8 +57,8 @@ const CrimeMap = () => {
   });
 
   return (
-    <>
-      <div className="controls">
+    <div className="map-layout">
+      <div className="sidebar">
         <label>
           📅 Date:
           <input
@@ -80,10 +81,15 @@ const CrimeMap = () => {
         </label>
 
         <label>
-          🕵️ Crime Type:
+          🕵️ Crime Type (CTRL to Select Multiple):
           <select
+            multiple
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e) => {
+              const options = Array.from(e.target.selectedOptions).map(o => o.value);
+              setSelectedCategory(options);
+            }}
+            className="multi-select"
           >
             <option value="all">All</option>
             {[...new Set(crimeSummary.map(c => c.category))].map((cat, idx) => (
@@ -106,54 +112,56 @@ const CrimeMap = () => {
         </label>
       </div>
 
-      <MapContainer
-        center={[51.4545, -2.5879]}
-        zoom={13}
-        style={{ height: "90vh", width: "100%" }}
-      >
-        <TileLayer
-          attribution='&copy; OpenStreetMap contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+      <div className="map-container">
+        <MapContainer
+          center={[51.4545, -2.5879]}
+          zoom={13}
+          style={{ height: "100%", width: "100%" }}
+        >
+          <TileLayer
+            attribution='&copy; OpenStreetMap contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
-        {viewMode === 'bubble' && filteredCrimes.map((crime, i) => (
-          <CircleMarker
-            key={i}
-            center={[crime.lat, crime.lng]}
-            radius={Math.sqrt(crime.count) * 2}
-            fillOpacity={0.5}
-            color="purple"
-          >
-            <Popup>
-              <b>{crime.category}</b><br />
-              {crime.count} reports<br />
-              <small>{crime.postcode}</small>
-            </Popup>
-          </CircleMarker>
-        ))}
+          {viewMode === 'bubble' && filteredCrimes.map((crime, i) => (
+            <CircleMarker
+              key={i}
+              center={[crime.lat, crime.lng]}
+              radius={Math.sqrt(crime.count) * 2}
+              fillOpacity={0.5}
+              color="purple"
+            >
+              <Popup>
+                <b>{crime.category}</b><br />
+                {crime.count} reports<br />
+                <small>{crime.postcode}</small>
+              </Popup>
+            </CircleMarker>
+          ))}
 
-        {viewMode === 'cluster' && (
-          <MarkerClusterGroup>
-            {filteredCrimes.map((crime, i) => (
-              <Marker
-                key={i}
-                position={[crime.lat, crime.lng]}
-              >
-                <Popup>
-                  <b>{crime.category}</b><br />
-                  {crime.count} reports<br />
-                  <small>{crime.postcode}</small>
-                </Popup>
-              </Marker>
-            ))}
-          </MarkerClusterGroup>
-        )}
+          {viewMode === 'cluster' && (
+            <MarkerClusterGroup>
+              {filteredCrimes.map((crime, i) => (
+                <Marker
+                  key={i}
+                  position={[crime.lat, crime.lng]}
+                >
+                  <Popup>
+                    <b>{crime.category}</b><br />
+                    {crime.count} reports<br />
+                    <small>{crime.postcode}</small>
+                  </Popup>
+                </Marker>
+              ))}
+            </MarkerClusterGroup>
+          )}
 
-        {viewMode === 'heatmap' && (
-          <HeatmapLayer data={filteredCrimes} />
-        )}
-      </MapContainer>
-    </>
+          {viewMode === 'heatmap' && (
+            <HeatmapLayer data={filteredCrimes} />
+          )}
+        </MapContainer>
+      </div>
+    </div>
   );
 };
 

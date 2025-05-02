@@ -4,7 +4,8 @@ import {
   TileLayer,
   CircleMarker,
   Popup,
-  Marker
+  Marker,
+  useMap
 } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
@@ -21,6 +22,18 @@ L.Icon.Default.mergeOptions({
   iconUrl: require('leaflet/dist/images/marker-icon.png'),
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
+
+// ✅ Add scale bar using useMap
+const ScaleControl = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    const scale = L.control.scale({ imperial: false }).addTo(map);
+    return () => map.removeControl(scale);
+  }, [map]);
+
+  return null;
+};
 
 const CrimeMap = () => {
   const [crimeSummary, setCrimeSummary] = useState([]);
@@ -169,6 +182,8 @@ const CrimeMap = () => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
+          <ScaleControl />
+
           {viewMode === 'bubble' && filteredCrimes.map((crime, i) => (
             <CircleMarker
               key={i}
@@ -188,10 +203,7 @@ const CrimeMap = () => {
           {viewMode === 'cluster' && (
             <MarkerClusterGroup>
               {filteredCrimes.map((crime, i) => (
-                <Marker
-                  key={i}
-                  position={[crime.lat, crime.lng]}
-                >
+                <Marker key={i} position={[crime.lat, crime.lng]}>
                   <Popup>
                     <b>{crime.category}</b><br />
                     {crime.count} reports<br />
@@ -206,6 +218,18 @@ const CrimeMap = () => {
             <HeatmapLayer data={filteredCrimes} />
           )}
         </MapContainer>
+
+        {/* 📌 Legend */}
+        <div className="map-legend">
+          <h4>🗺️ Legend</h4>
+          <ul>
+            <li><span className="legend-marker small"></span> 1–5 crimes</li>
+            <li><span className="legend-marker medium"></span> 6–20 crimes</li>
+            <li><span className="legend-marker large"></span> 21+ crimes</li>
+            <li><span className="legend-cluster">🧩</span> Cluster</li>
+            <li><span className="legend-heat">🔥</span> Heatmap density</li>
+          </ul>
+        </div>
       </div>
     </div>
   );
